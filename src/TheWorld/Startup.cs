@@ -9,6 +9,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TheWorld.Services;
+using TheWorld.Models;
+using AutoMapper;
+using TheWorld.ViewModels;
 
 namespace TheWorld
 {
@@ -43,17 +46,33 @@ namespace TheWorld
                 //add the real service here
             }
 
+            services.AddDbContext<WorldContext>();
+            services.AddScoped<IWorldRepository, WorldRepository>();
+            services.AddTransient<WorldContextSeedData>();
+            services.AddTransient<GeoCoordsService>();
+            services.AddLogging();
             services.AddMvc();
+                //.AddJsonOptions(config =>
+                //{
+                //    config.SerializerSettings.ContractResolver = new CamelCasePropertyNameContractResolver();
+                //});
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, WorldContextSeedData seeder)
         {
             loggerFactory.AddConsole();
+
+            Mapper.Initialize(config =>
+            {
+                config.CreateMap<TripViewModel, Trip>().ReverseMap();
+                config.CreateMap<StopViewModel, Stop>().ReverseMap();
+            });
 
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+                loggerFactory.AddDebug(LogLevel.Information);
             }
             app.UseStaticFiles();
             app.UseMvc(config =>
@@ -63,6 +82,8 @@ namespace TheWorld
                     template: "{controller}/{action}/{id?}",
                     defaults: new { controller = "App", action="Index"});
             });
+
+            seeder.EnsureSeedData().Wait();
         }
     }
 }
